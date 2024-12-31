@@ -170,7 +170,7 @@ export class WHIPClient extends EventEmitter {
   }
 
   /** @hidden */
-  async onConnectionStateChange(event: Event) {
+  async onConnectionStateChange(_: Event) {
     this.log("PeerConnectionState", this.peer.connectionState);
     if (this.peer.connectionState === 'failed') {
       await this.destroy();
@@ -178,22 +178,22 @@ export class WHIPClient extends EventEmitter {
   }
 
   /** @hidden */
-  onIceConnectionStateChange(e) {
+  onIceConnectionStateChange(_: any) {
     this.log("IceConnectionState", this.peer.iceConnectionState);
   }
 
   /** @hidden */
-  onIceCandidateError(e) {
+  onIceCandidateError(e: any) {
     this.log("IceCandidateError", e);
   }
 
   /** @hidden */
-  onIceGatheringStateChange(e) {
+  onIceGatheringStateChange(_: any) {
     if (this.peer.iceGatheringState !== 'complete' || this.supportTrickleIce() || !this.waitingForCandidates) {
       return;
     }
 
-    this.onDoneWaitingForCandidates();
+    this.onDoneWaitingForCandidates().then();
   }
 
 /**
@@ -206,7 +206,7 @@ export class WHIPClient extends EventEmitter {
 
   private async startSdpExchange(): Promise<void> {
     // https://developer.mozilla.org/en-US/docs/Web/API/WebRTC_API/Connectivity
-    // 
+    //
     // Client peer creates an offer
     const sdpOffer = await this.peer.createOffer({
       offerToReceiveAudio: false,
@@ -256,7 +256,7 @@ export class WHIPClient extends EventEmitter {
       return;
     }
 
-    this.onDoneWaitingForCandidates();
+    this.onDoneWaitingForCandidates().then();
   }
 
   private async onDoneWaitingForCandidates(): Promise<void> {
@@ -344,6 +344,39 @@ export class WHIPClient extends EventEmitter {
     }
   }
 
+  // https://developer.mozilla.org/en-US/docs/Web/Media/Formats/WebRTC_codecs#specifying_and_configuring_codecs
+  private preferCodec(codecs: RTCRtpCodec[], mimeType: string) {
+    let otherCodecs: RTCRtpCodec[] = [];
+    let sortedCodecs: RTCRtpCodec[] = [];
+    let count = codecs.length;
+
+    codecs.forEach((codec) => {
+      if (codec.mimeType === mimeType) {
+        sortedCodecs.push(codec);
+      } else {
+        otherCodecs.push(codec);
+      }
+    });
+
+    return sortedCodecs.concat(otherCodecs);
+  }
+
+  // https://developer.mozilla.org/en-US/docs/Web/Media/Formats/WebRTC_codecs#specifying_and_configuring_codecs
+  // TODO: Inform the user if the codec is not supported
+  // TODO: Specs
+  private changeVideoCodec(mimeType: string) {
+    const transceivers = this.peer.getTransceivers();
+    transceivers.forEach((transceiver) => {
+      const kind = transceiver.sender.track!.kind;
+      let sendCodecs = RTCRtpSender.getCapabilities(kind)?.codecs!;
+
+      if (kind === "video") {
+        sendCodecs = this.preferCodec(sendCodecs, mimeType);
+        transceiver.setCodecPreferences([...sendCodecs]);
+      }
+    });
+  }
+
 /**
  * @example
  * const videoIngest = document.querySelector<HTMLVideoElement>("video#ingest");
@@ -351,13 +384,24 @@ export class WHIPClient extends EventEmitter {
  * videoIngest.srcObject = mediaStream;
  * await client.ingest(mediaStream);
  */
-  async ingest(mediaStream: MediaStream): Promise<void> {
+  async ingest(mediaStream: MediaStream, preferredVideoCodec?: string, worker?: Worker): Promise<void> {
     if (!this.peer) {
       this.initPeer();
     }
-    mediaStream
+    const senders = mediaStream
       .getTracks()
-      .forEach((track) => this.peer.addTrack(track, mediaStream));
+      .map((track) => this.peer.addTrack(track, mediaStream));
+
+    // TODO: Support audio codec ?
+    if (preferredVideoCodec) {
+      this.changeVideoCodec(preferredVideoCodec);
+    }
+
+    if (worker) {
+      senders.forEach((sender) => {
+        sender.transform = new RTCRtpScriptTransform(worker, {side: "send"});
+      });
+    }
 
     // Unless app has forced not to use Trickle ICE we need
     // check whether the endpoint has PATCH as allowed method
@@ -412,7 +456,8 @@ export class WHIPClient extends EventEmitter {
     });
   }
 
-/**
+  //noinspection JSUnusedGlobalSymbols
+  /**
  * @example
  * const resourceExtensions = await client.getResourceExtensions();
  */

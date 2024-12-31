@@ -1,7 +1,7 @@
 import { parseWHIPIceLinkHeader } from "./util";
 import { EventEmitter } from "events";
 import { WHIPProtocol } from "./WHIPProtocol";
-import { SessionDescription, parse, write } from 'sdp-transform'
+import { parse, SessionDescription, write } from "sdp-transform";
 
 const DEFAULT_CONNECT_TIMEOUT = 2000;
 
@@ -33,7 +33,7 @@ export interface WHIPClientConstructor {
 /** @hidden */
 interface IceCredentials {
   ufrag: string;
-  pwd: string
+  pwd: string;
 }
 
 export class WHIPClient extends EventEmitter {
@@ -48,15 +48,15 @@ export class WHIPClient extends EventEmitter {
   private iceCredentials: IceCredentials | undefined = undefined;
   private mediaMids: Array<string> = [];
   private whipProtocol: WHIPProtocol;
-  private peerConnectionFactory: (configuration: RTCConfiguration) => RTCPeerConnection;
+  private readonly peerConnectionFactory: (configuration: RTCConfiguration) => RTCPeerConnection;
   private iceGatheringTimeout: any;
   private waitingForCandidates: boolean = false;
 
-/**
- * @example
- * const client = new WHIPClient({endpoint: "http://<host>/whip/broadcaster", opts: { debug: true, iceServers: [{ urls: "stun:stun.l.google.com:19320" }] }});
- */
-  constructor({ endpoint, opts, whipProtocol, peerConnectionFactory }: WHIPClientConstructor) {
+  /**
+   * @example
+   * const client = new WHIPClient({endpoint: "http://<host>/whip/broadcaster", opts: { debug: true, iceServers: [{ urls: "stun:stun.l.google.com:19320" }] }});
+   */
+  constructor({endpoint, opts, whipProtocol, peerConnectionFactory}: WHIPClientConstructor) {
     super();
     this.whipEndpoint = new URL(endpoint);
     this.opts = opts;
@@ -77,11 +77,11 @@ export class WHIPClient extends EventEmitter {
       ],
     });
 
-    this.peer.addEventListener('iceconnectionstatechange', this.onIceConnectionStateChange.bind(this));
-    this.peer.addEventListener('icecandidateerror', this.onIceCandidateError.bind(this));
-    this.peer.addEventListener('connectionstatechange', this.onConnectionStateChange.bind(this));
-    this.peer.addEventListener('icecandidate', this.onIceCandidate.bind(this));
-    this.peer.addEventListener('onicegatheringstatechange', this.onIceGatheringStateChange.bind(this));
+    this.peer.addEventListener("iceconnectionstatechange", this.onIceConnectionStateChange.bind(this));
+    this.peer.addEventListener("icecandidateerror", this.onIceCandidateError.bind(this));
+    this.peer.addEventListener("connectionstatechange", this.onConnectionStateChange.bind(this));
+    this.peer.addEventListener("icecandidate", this.onIceCandidate.bind(this));
+    this.peer.addEventListener("onicegatheringstatechange", this.onIceGatheringStateChange.bind(this));
   }
 
   private log(...args: any[]) {
@@ -97,7 +97,7 @@ export class WHIPClient extends EventEmitter {
   private makeSDPTransformCandidate(candidate: RTCIceCandidate): any {
     return {
       foundation: candidate.foundation,
-      component: candidate.component === 'rtp' ? 0 : 1,
+      component: candidate.component === "rtp" ? 0 : 1,
       transport: candidate.protocol.toString(),
       priority: candidate.priority,
       ip: candidate.address,
@@ -105,7 +105,7 @@ export class WHIPClient extends EventEmitter {
       type: candidate.type.toString(),
       raddr: candidate?.relatedAddress,
       rport: candidate?.relatedPort,
-      tcptype: candidate?.tcpType?.toString()
+      tcptype: candidate?.tcpType?.toString(),
     };
   }
 
@@ -118,22 +118,22 @@ export class WHIPClient extends EventEmitter {
     let trickleIceSDP: SessionDescription = {
       media: [],
       iceUfrag: this.iceCredentials.ufrag,
-      icePwd: this.iceCredentials.pwd
+      icePwd: this.iceCredentials.pwd,
     };
 
     // Create the SDP fragment as defined in https://www.rfc-editor.org/rfc/rfc8840.html
     for (let mediaMid of this.mediaMids) {
       const media = {
-        type: 'audio',
+        type: "audio",
         port: 9,
-        protocol: 'RTP/AVP',
-        payloads: '0',
+        protocol: "RTP/AVP",
+        payloads: "0",
         rtp: [],
         fmtp: [],
         mid: mediaMid,
         candidates: [
-          this.makeSDPTransformCandidate(candidate)
-        ]
+          this.makeSDPTransformCandidate(candidate),
+        ],
       };
       trickleIceSDP.media.push(media);
     }
@@ -141,12 +141,12 @@ export class WHIPClient extends EventEmitter {
     const trickleIceSDPString = write(trickleIceSDP);
 
     // sdp-transform appends standard SDP fields that are not used in WHIP trickle ICE SDP fragments, remove them from the result.
-    return trickleIceSDPString.replace('v=0\r\ns= \r\n', '');
+    return trickleIceSDPString.replace("v=0\r\ns= \r\n", "");
   }
 
   /** @hidden */
   async onIceCandidate(event: Event) {
-    if (event.type !== 'icecandidate') {
+    if (event.type !== "icecandidate") {
       return;
     }
     const candidateEvent = <RTCPeerConnectionIceEvent>(event);
@@ -172,7 +172,7 @@ export class WHIPClient extends EventEmitter {
   /** @hidden */
   async onConnectionStateChange(_: Event) {
     this.log("PeerConnectionState", this.peer.connectionState);
-    if (this.peer.connectionState === 'failed') {
+    if (this.peer.connectionState === "failed") {
       await this.destroy();
     }
   }
@@ -189,17 +189,17 @@ export class WHIPClient extends EventEmitter {
 
   /** @hidden */
   onIceGatheringStateChange(_: any) {
-    if (this.peer.iceGatheringState !== 'complete' || this.supportTrickleIce() || !this.waitingForCandidates) {
+    if (this.peer.iceGatheringState !== "complete" || this.supportTrickleIce() || !this.waitingForCandidates) {
       return;
     }
 
     this.onDoneWaitingForCandidates().then();
   }
 
-/**
- * @example
- * const connectionState = await client.getICEConnectionState();
- */
+  /**
+   * @example
+   * const connectionState = await client.getICEConnectionState();
+   */
   getICEConnectionState() {
     return this.peer.iceConnectionState;
   }
@@ -221,7 +221,7 @@ export class WHIPClient extends EventEmitter {
     if (parsedOffer.iceUfrag && parsedOffer.icePwd) {
       this.iceCredentials = {
         pwd: parsedOffer.icePwd,
-        ufrag: parsedOffer.iceUfrag
+        ufrag: parsedOffer.iceUfrag,
       };
 
     } else if (parsedOffer.media.length !== 0 &&
@@ -229,7 +229,7 @@ export class WHIPClient extends EventEmitter {
       parsedOffer.media[0].icePwd) {
       this.iceCredentials = {
         pwd: parsedOffer.media[0].icePwd,
-        ufrag: parsedOffer.media[0].iceUfrag
+        ufrag: parsedOffer.media[0].iceUfrag,
       };
     }
 
@@ -322,23 +322,23 @@ export class WHIPClient extends EventEmitter {
     return iceServers;
   }
 
-/**
- * @example
- * const supportTrickleIce = await client.supportTrickleIce();
- */
+  /**
+   * @example
+   * const supportTrickleIce = await client.supportTrickleIce();
+   */
   supportTrickleIce(): boolean {
     return !this.opts.noTrickleIce;
   }
 
-/**
- * @example
- * await client.setIceServersFromEndpoint();
- */
+  /**
+   * @example
+   * await client.setIceServersFromEndpoint();
+   */
   async setIceServersFromEndpoint(): Promise<void> {
     if (this.opts.authkey) {
       this.log("Fetching ICE config from endpoint");
       const iceServers: WHIPClientIceServer[] = await this.doFetchICEFromEndpoint();
-      this.peer.setConfiguration({ iceServers: iceServers });
+      this.peer.setConfiguration({iceServers: iceServers});
     } else {
       this.error("No authkey is provided so cannot fetch ICE config from endpoint.");
     }
@@ -348,7 +348,6 @@ export class WHIPClient extends EventEmitter {
   private preferCodec(codecs: RTCRtpCodec[], mimeType: string) {
     let otherCodecs: RTCRtpCodec[] = [];
     let sortedCodecs: RTCRtpCodec[] = [];
-    let count = codecs.length;
 
     codecs.forEach((codec) => {
       if (codec.mimeType === mimeType) {
@@ -377,13 +376,13 @@ export class WHIPClient extends EventEmitter {
     });
   }
 
-/**
- * @example
- * const videoIngest = document.querySelector<HTMLVideoElement>("video#ingest");
- * const mediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
- * videoIngest.srcObject = mediaStream;
- * await client.ingest(mediaStream);
- */
+  /**
+   * @example
+   * const videoIngest = document.querySelector<HTMLVideoElement>("video#ingest");
+   * const mediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+   * videoIngest.srcObject = mediaStream;
+   * await client.ingest(mediaStream);
+   */
   async ingest(mediaStream: MediaStream, preferredVideoCodec?: string, worker?: Worker): Promise<void> {
     if (!this.peer) {
       this.initPeer();
@@ -422,10 +421,10 @@ export class WHIPClient extends EventEmitter {
     await this.startSdpExchange();
   }
 
-/**
- * @example
- * await client.destroy();
- */
+  /**
+   * @example
+   * await client.destroy();
+   */
   async destroy(): Promise<void> {
     const resourceUrl = await this.getResourceUrl();
     await this.whipProtocol.delete(resourceUrl).catch((e) => this.error("destroy()", e));
@@ -442,10 +441,10 @@ export class WHIPClient extends EventEmitter {
     this.peer = null;
   }
 
-/**
- * @example
- * const resourceUrl = await client.getResourceUrl();
- */
+  /**
+   * @example
+   * const resourceUrl = await client.getResourceUrl();
+   */
   getResourceUrl(): Promise<string> {
     if (this.resource) {
       return Promise.resolve(this.resource);
@@ -458,9 +457,9 @@ export class WHIPClient extends EventEmitter {
 
   //noinspection JSUnusedGlobalSymbols
   /**
- * @example
- * const resourceExtensions = await client.getResourceExtensions();
- */
+   * @example
+   * const resourceExtensions = await client.getResourceExtensions();
+   */
   async getResourceExtensions(): Promise<string[]> {
     await this.getResourceUrl();
     return this.extensions;

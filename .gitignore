@@ -1,3 +1,7 @@
+# IntelliJ
+.idea
+*.iml
+
 dist
 umd_dist
 node_modules
@@ -8,4 +12,3 @@ lerna-debug.log
 .vscode/extensions.json
 *.pem
 tools/SymphonyMediaBridge
-
